@@ -931,8 +931,11 @@ export async function auditStartupEntries(
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): Promise<void> {
   const failures = await inactiveEntries(ctx)
+  // A deployment can make its own rows mandatory, e.g. the MCP and hook rows a role depends on.
+  const deploymentIds = (process.env.DSH_REQUIRED_ENTRIES ?? '').split(',').map(id => id.trim()).filter(id => id !== '')
+  const requiredIds = new Set([...requiredStartupEntryIds, ...deploymentIds])
   const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
-    || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
+    || requiredIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
     throw new StartupError(startupDiagnostic(binName, failures, required), failures.map(({ entry, outcome }) => ({
       id: entry.options.id, module: entry.options.name, required: required.has(entry), fiberState: entry.fiber?.state, outcome,
